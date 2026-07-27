@@ -20,6 +20,15 @@
         }
         .weight-item { background: #f8f9fa; border: 1px solid #e9ecef; padding: 6px 12px; border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
         .footer-sig { text-align: center; margin-top: 40px; padding: 15px; font-size: 14px; color: #6c757d; font-weight: bold; border-top: 1px solid #dee2e6; }
+        
+        /* Success Flash Effect */
+        @keyframes successFlash {
+            0% { background-color: #d4edda; border-color: #28a745; }
+            100% { background-color: #fff; border-color: #ced4da; }
+        }
+        .flash-effect {
+            animation: successFlash 0.6s ease;
+        }
     </style>
 </head>
 <body>
@@ -74,7 +83,7 @@
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdb2G7RdCq_dGkFiZvGUvfdaOv-pJsdDQ_uMSx3yf1Y746etoyYG3HZhaG7uH5U3qgJw/exec";
 
-    let washersData = JSON.parse(localStorage.getItem('qcWashersMultiSheetV3')) || [];
+    let washersData = JSON.parse(localStorage.getItem('qcWashersMultiSheetV4')) || [];
 
     function getTodayDate() {
         const today = new Date();
@@ -98,6 +107,16 @@
     function updatePcs(index, val) {
         washersData[index].pcsPerKg = val;
         saveAndRenderLocally();
+        
+        // Instant visual flash effect on input
+        const inputElem = document.getElementById(`pcsInput_${index}`);
+        if (inputElem) {
+            inputElem.classList.add('flash-effect');
+            setTimeout(() => inputElem.classList.remove('flash-effect'), 600);
+        }
+        
+        // Re-render to update calculated total quantity immediately across all weights
+        renderCards();
     }
 
     function addWeight(index) {
@@ -113,16 +132,16 @@
         
         saveAndRender();
         
-        // Focus back to the specific weight input field
-        setTimeout(() => {
-            const nextInput = document.getElementById(`weightInput_${index}`);
-            if (nextInput) nextInput.focus();
-        }, 50);
+        // Flash effect on weight input box to show entry success
+        if (inputElem) {
+            inputElem.classList.add('flash-effect');
+            setTimeout(() => inputElem.classList.remove('flash-effect'), 600);
+            inputElem.focus();
+        }
 
         syncToGoogleSheet(washersData[index].size, weightObj);
     }
 
-    // Enter Key Handler for Weight Input
     function handleWeightKeypress(event, index) {
         if (event.key === 'Enter') {
             event.preventDefault();
@@ -154,7 +173,7 @@
     }
 
     function saveAndRenderLocally() {
-        localStorage.setItem('qcWashersMultiSheetV3', JSON.stringify(washersData));
+        localStorage.setItem('qcWashersMultiSheetV4', JSON.stringify(washersData));
     }
 
     function saveAndRender() {
@@ -290,7 +309,7 @@
                     <div class="col-5">
                         <div class="p-2 border rounded bg-light text-center">
                             <label class="form-label fw-bold text-secondary mb-1" style="font-size: 10px;">1 Kg = Pcs</label>
-                            <input type="number" step="any" class="form-control form-control-sm text-center fw-bold text-dark" placeholder="Enter value" value="${card.pcsPerKg}" oninput="updatePcs(${cIndex}, this.value)">
+                            <input type="number" step="any" id="pcsInput_${cIndex}" class="form-control form-control-sm text-center fw-bold text-dark" placeholder="Enter value" value="${card.pcsPerKg}" oninput="updatePcs(${cIndex}, this.value)">
                         </div>
                     </div>
                     <div class="col-7">
