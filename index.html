@@ -7,10 +7,19 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f4f6f9; padding: 15px; font-family: Arial, sans-serif; color: #333; }
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
         .washer-card { background: #ffffff; border: none; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s; }
         .washer-card:hover { transform: translateY(-3px); }
-        .dashboard-box { background: linear-gradient(135deg, #2c3e50, #34495e); color: white; border-radius: 8px; padding: 12px; text-align: center; }
+        
+        /* Attractive & Highly Visible Dashboard Box */
+        .dashboard-box { 
+            background: linear-gradient(135deg, #1e3c72, #2a5298); 
+            color: #ffffff; 
+            border-radius: 8px; 
+            padding: 10px; 
+            text-align: center; 
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.2);
+        }
         .weight-item { background: #f8f9fa; border: 1px solid #e9ecef; padding: 6px 12px; border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
     </style>
 </head>
@@ -46,7 +55,7 @@
                 <button onclick="addNewWasherCard()" class="btn btn-primary btn-lg w-100 fw-bold">➕ Add Washer Card</button>
             </div>
             <div class="col-md-2">
-                <button onclick="exportToExcel()" class="btn btn-success btn-lg w-100 fw-bold">📥 Export Excel</button>
+                <button onclick="exportAllToMultiSheetExcel()" class="btn btn-success btn-lg w-100 fw-bold">📥 Export All (Multi-Sheet)</button>
             </div>
         </div>
     </div>
@@ -55,13 +64,13 @@
     <div id="cardsContainer" class="grid-container"></div>
 </div>
 
-<!-- SheetJS for Excel Export -->
+<!-- SheetJS for Excel Multi-Sheet Export -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdb2G7RdCq_dGkFiZvGUvfdaOv-pJsdDQ_uMSx3yf1Y746etoyYG3HZhaG7uH5U3qgJw/exec";
 
-    let washersData = JSON.parse(localStorage.getItem('qcWashersGrid')) || [];
+    let washersData = JSON.parse(localStorage.getItem('qcWashersMultiSheetV2')) || [];
 
     function getTodayDate() {
         const today = new Date();
@@ -103,6 +112,14 @@
         syncToGoogleSheet(washersData[index].size, weightObj);
     }
 
+    // Enter Key Handler for Weight Input
+    function handleWeightKeypress(event, index) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            addWeight(index);
+        }
+    }
+
     function deleteWeight(cardIndex, weightIndex) {
         if (confirm("Delete karna chahte hain?")) {
             washersData[cardIndex].weights.splice(weightIndex, 1);
@@ -127,7 +144,7 @@
     }
 
     function saveAndRenderLocally() {
-        localStorage.setItem('qcWashersGrid', JSON.stringify(washersData));
+        localStorage.setItem('qcWashersMultiSheetV2', JSON.stringify(washersData));
     }
 
     function saveAndRender() {
@@ -142,34 +159,79 @@
         }).catch(err => console.log("Sync error"));
     }
 
-    function exportToExcel() {
-        if (washersData.length === 0) {
+    // Individual Card Export
+    function exportSingleCard(cardIndex) {
+        let card = washersData[cardIndex];
+        if (!card || card.weights.length === 0) {
             alert("Export karne ke liye koi data nahi hai!");
             return;
         }
 
         let exportData = [];
         let serial = 1;
+        let pcs = parseFloat(card.pcsPerKg) || 0;
 
-        washersData.forEach(card => {
-            let pcs = parseFloat(card.pcsPerKg) || 0;
-            card.weights.forEach(w => {
-                let qty = w.weight * pcs;
-                exportData.push({
-                    "Sr No": serial++,
-                    "Date": w.date,
-                    "Washer Name / Size": card.size,
-                    "Total Weight (Kg)": w.weight,
-                    "Pcs in 1 Kg": pcs,
-                    "Total Quantity (Pcs)": parseFloat(qty.toFixed(2))
-                });
+        card.weights.forEach(w => {
+            let qty = w.weight * pcs;
+            exportData.push({
+                "Sr No": serial++,
+                "Date": w.date,
+                "Washer Size": card.size,
+                "Total Weight (Kg)": w.weight,
+                "Pcs in 1 Kg": pcs,
+                "Total Quantity (Pcs)": parseFloat(qty.toFixed(2))
             });
         });
 
         const worksheet = XLSX.utils.json_to_sheet(exportData);
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "QC Washers");
-        XLSX.writeFile(workbook, "QC_Washer_Report.xlsx");
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Washer Data");
+        
+        let safeName = card.size.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 25);
+        XLSX.writeFile(workbook, `${safeName}_Report.xlsx`);
+    }
+
+    // Main Export: Multi-Sheet
+    function exportAllToMultiSheetExcel() {
+        if (washersData.length === 0) {
+            alert("Export karne ke liye koi data nahi hai!");
+            return;
+        }
+
+        const workbook = XLSX.utils.book_new();
+        let hasData = false;
+
+        washersData.forEach((card, idx) => {
+            if (card.weights.length > 0) {
+                hasData = true;
+                let exportData = [];
+                let serial = 1;
+                let pcs = parseFloat(card.pcsPerKg) || 0;
+
+                card.weights.forEach(w => {
+                    let qty = w.weight * pcs;
+                    exportData.push({
+                        "Sr No": serial++,
+                        "Date": w.date,
+                        "Washer Size": card.size,
+                        "Total Weight (Kg)": w.weight,
+                        "Pcs in 1 Kg": pcs,
+                        "Total Quantity (Pcs)": parseFloat(qty.toFixed(2))
+                    });
+                });
+
+                const worksheet = XLSX.utils.json_to_sheet(exportData);
+                let sheetName = `Sheet${idx+1}_${card.size.substring(0, 10).replace(/[^a-zA-Z0-9]/g, "")}`;
+                XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+            }
+        });
+
+        if (!hasData) {
+            alert("Kisi bhi card me weight add nahi kiya gaya hai!");
+            return;
+        }
+
+        XLSX.writeFile(workbook, "QC_All_Washers_MultiSheet.xlsx");
     }
 
     function renderCards() {
@@ -184,6 +246,7 @@
         washersData.forEach((card, cIndex) => {
             let totalW = 0;
             let pcs = parseFloat(card.pcsPerKg) || 0;
+            let entriesCount = card.weights.length;
 
             card.weights.forEach(w => { totalW += w.weight; });
             let totalQ = totalW * pcs;
@@ -205,31 +268,34 @@
 
             let cardHtml = `<div class="washer-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="fw-bold m-0 text-primary text-truncate" style="max-width: 230px;" title="${card.size}">▼ ${card.size}</h6>
-                    <button class="btn btn-sm btn-outline-danger py-0 px-2" onclick="removeCard(${cIndex})">❌</button>
+                    <h6 class="fw-bold m-0 text-primary text-truncate" style="max-width: 220px;" title="${card.size}">▼ ${card.size}</h6>
+                    <div>
+                        <button class="btn btn-sm btn-outline-success py-0 px-1 me-1" onclick="exportSingleCard(${cIndex})" title="Export Individual Excel">📥</button>
+                        <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="removeCard(${cIndex})" title="Remove Card">❌</button>
+                    </div>
                 </div>
                 
-                <!-- DASHBOARD -->
+                <!-- DASHBOARD WITH VISIBLE COLORS & ENTRIES -->
                 <div class="row g-2 mb-3">
                     <div class="col-5">
                         <div class="p-2 border rounded bg-light text-center">
                             <label class="form-label fw-bold text-secondary mb-1" style="font-size: 10px;">1 Kg = Pcs</label>
-                            <input type="number" step="any" class="form-control form-control-sm text-center fw-bold" placeholder="318" value="${card.pcsPerKg}" oninput="updatePcs(${cIndex}, this.value)">
+                            <input type="number" step="any" class="form-control form-control-sm text-center fw-bold text-dark" placeholder="Enter value" value="${card.pcsPerKg}" oninput="updatePcs(${cIndex}, this.value)">
                         </div>
                     </div>
                     <div class="col-7">
                         <div class="dashboard-box">
-                            <div style="font-size: 9px;" class="text-warning">SUMMARY</div>
-                            <div style="font-size: 12px;">Wt: <strong>${totalW.toFixed(3)}kg</strong></div>
-                            <div style="font-size: 12px;" class="text-success">Qty: <strong>${totalQ.toFixed(2)}</strong></div>
+                            <div style="font-size: 10px;" class="text-warning fw-bold">ENTRIES: <span class="text-white">${entriesCount}</span></div>
+                            <div style="font-size: 12px;">Wt: <strong class="text-info">${totalW.toFixed(3)}</strong> kg</div>
+                            <div style="font-size: 12px;" class="text-success">Qty: <strong class="text-white">${totalQ.toFixed(2)}</strong></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- WEIGHT INPUT -->
+                <!-- WEIGHT INPUT WITH ENTER KEY SUPPORT -->
                 <div class="row g-2 mb-3">
                     <div class="col-8">
-                        <input type="number" step="0.001" id="weightInput_${cIndex}" class="form-control form-control-sm" placeholder="Weight (Kg)">
+                        <input type="number" step="0.001" id="weightInput_${cIndex}" class="form-control form-control-sm" placeholder="Weight (Kg)" onkeypress="handleWeightKeypress(event, ${cIndex})">
                     </div>
                     <div class="col-4">
                         <button onclick="addWeight(${cIndex})" class="btn btn-success btn-sm w-100 fw-bold">[+ Add]</button>
