@@ -10,8 +10,6 @@
         .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
         .washer-card { background: #ffffff; border: none; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s; }
         .washer-card:hover { transform: translateY(-3px); }
-        
-        /* Attractive & Highly Visible Dashboard Box */
         .dashboard-box { 
             background: linear-gradient(135deg, #1e3c72, #2a5298); 
             color: #ffffff; 
@@ -21,6 +19,7 @@
             box-shadow: inset 0 0 8px rgba(0,0,0,0.2);
         }
         .weight-item { background: #f8f9fa; border: 1px solid #e9ecef; padding: 6px 12px; border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+        .footer-sig { text-align: center; margin-top: 40px; padding: 15px; font-size: 14px; color: #6c757d; font-weight: bold; border-top: 1px solid #dee2e6; }
     </style>
 </head>
 <body>
@@ -62,6 +61,11 @@
 
     <!-- Cards Grid Container -->
     <div id="cardsContainer" class="grid-container"></div>
+
+    <!-- Footer Signature -->
+    <div class="footer-sig">
+        Developed by Sagar Herole
+    </div>
 </div>
 
 <!-- SheetJS for Excel Multi-Sheet Export -->
@@ -70,7 +74,7 @@
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdb2G7RdCq_dGkFiZvGUvfdaOv-pJsdDQ_uMSx3yf1Y746etoyYG3HZhaG7uH5U3qgJw/exec";
 
-    let washersData = JSON.parse(localStorage.getItem('qcWashersMultiSheetV2')) || [];
+    let washersData = JSON.parse(localStorage.getItem('qcWashersMultiSheetV3')) || [];
 
     function getTodayDate() {
         const today = new Date();
@@ -99,15 +103,21 @@
     function addWeight(index) {
         const inputElem = document.getElementById(`weightInput_${index}`);
         const wVal = parseFloat(inputElem.value);
-        const pcsVal = parseFloat(washersData[index].pcsPerKg);
 
         if (!wVal || wVal <= 0) { alert("Sahi weight dalein!"); return; }
-        if (!pcsVal || pcsVal <= 0) { alert("Pehle 1 Kg me kitne pieces hain woh set karein!"); return; }
+
+        const pcsVal = parseFloat(washersData[index].pcsPerKg) || 0;
 
         const weightObj = { date: getTodayDate(), weight: wVal, pcsPerKg: pcsVal };
         washersData[index].weights.push(weightObj);
-        inputElem.value = "";
+        
         saveAndRender();
+        
+        // Focus back to the specific weight input field
+        setTimeout(() => {
+            const nextInput = document.getElementById(`weightInput_${index}`);
+            if (nextInput) nextInput.focus();
+        }, 50);
 
         syncToGoogleSheet(washersData[index].size, weightObj);
     }
@@ -144,7 +154,7 @@
     }
 
     function saveAndRenderLocally() {
-        localStorage.setItem('qcWashersMultiSheetV2', JSON.stringify(washersData));
+        localStorage.setItem('qcWashersMultiSheetV3', JSON.stringify(washersData));
     }
 
     function saveAndRender() {
@@ -292,7 +302,7 @@
                     </div>
                 </div>
 
-                <!-- WEIGHT INPUT WITH ENTER KEY SUPPORT -->
+                <!-- WEIGHT INPUT WITH ENTER KEY SUPPORT & AUTO FOCUS -->
                 <div class="row g-2 mb-3">
                     <div class="col-8">
                         <input type="number" step="0.001" id="weightInput_${cIndex}" class="form-control form-control-sm" placeholder="Weight (Kg)" onkeypress="handleWeightKeypress(event, ${cIndex})">
