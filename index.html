@@ -8,7 +8,6 @@
     <style>
         body { background-color: #f4f6f9; font-family: Arial, sans-serif; color: #333; }
         
-        /* Login Screen Overlay Styling */
         #loginOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #1e293b; display: flex; align-items: center; justify-content: center; z-index: 9999;
@@ -18,7 +17,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 420px; text-align: center;
         }
 
-        /* Dashboard & Grid Styling */
         .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
         .washer-card { background: #ffffff; border: none; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s; }
         .washer-card:hover { transform: translateY(-3px); }
@@ -30,7 +28,6 @@
         .weight-item { background: #f8f9fa; border: 1px solid #e9ecef; padding: 6px 12px; border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
         .footer-sig { text-align: center; margin-top: 40px; padding: 15px; font-size: 14px; color: #6c757d; font-weight: bold; border-top: 1px solid #dee2e6; }
         
-        /* Smooth Success Flash Effect */
         @keyframes successGlow {
             0% { background-color: #d4edda; border-color: #28a745; box-shadow: 0 0 10px rgba(40, 167, 69, 0.5); }
             100% { background-color: #fff; border-color: #ced4da; box-shadow: none; }
@@ -40,7 +37,7 @@
 </head>
 <body>
 
-<!-- 🔑 1. USER ID ACCESS GATE / LOGIN SCREEN -->
+<!-- 🔑 1. USER ID LOGIN SCREEN -->
 <div id="loginOverlay">
     <div class="login-card">
         <h3 class="fw-bold text-dark mb-1">⚙️ QC Washer Counter</h3>
@@ -84,7 +81,7 @@
                     <option value="HDG 45X20X4- Vidya">HDG 45X20X4- Vidya</option>
                     <option value="HDG 45X20X4- Parmar">HDG 45X20X4- Parmar</option>
                     <option value="HDG 45X28X4- Parmar">HDG 45X28X4- Parmar</option>
-                    <option value="HDG 50X28X4- Parmar">HDG 50X28X4- Parmar</option>
+                    <option value="HDG 50X28X4- Parmar">HDG 50X58X4- Parmar</option>
                     <option value="HDG 74X68X4- Parmar">HDG 74X68X4- Parmar</option>
                 </select>
             </div>
@@ -95,9 +92,11 @@
                 <button onclick="exportAllToMultiSheetExcel()" class="btn btn-success btn-lg w-100 fw-bold">📥 Export All</button>
             </div>
         </div>
-        <div class="row mt-2">
+        
+        <!-- Admin Only Row -->
+        <div class="row mt-2" id="adminControlRow" style="display: none;">
             <div class="col-12 text-end">
-                <button class="btn btn-sm btn-dark fw-bold" data-bs-toggle="modal" data-bs-target="#userManageModal" onclick="renderUserListModal()">🛠️ Manage Authorized User IDs</button>
+                <button class="btn btn-sm btn-dark fw-bold" data-bs-toggle="modal" data-bs-target="#userManageModal" onclick="renderUserListModal()">🛠️ Manage Authorized User IDs (Admin Only)</button>
             </div>
         </div>
     </div>
@@ -105,13 +104,12 @@
     <!-- Cards Grid Container -->
     <div id="cardsContainer" class="grid-container"></div>
 
-    <!-- Footer Signature -->
     <div class="footer-sig">
         Developed by Sagar Herole
     </div>
 </div>
 
-<!-- 🛡️ 3. MANAGE AUTHORIZED USERS MODAL -->
+<!-- 🛡️ 3. MANAGE AUTHORIZED USERS MODAL (WITH ROLE DROPDOWN) -->
 <div class="modal fade" id="userManageModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -120,26 +118,36 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="input-group mb-3">
-                    <input type="text" id="newUserIdInput" class="form-control" placeholder="Enter New User ID (e.g. ID-102)">
-                    <button class="btn btn-primary fw-bold" id="addUserIdBtn" onclick="addNewUserId()">➕ Add ID</button>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <input type="text" id="newUserIdInput" class="form-control" placeholder="User ID (e.g. ID-102)">
+                    </div>
+                    <div class="col-3">
+                        <select id="newUserRoleSelect" class="form-select">
+                            <option value="USER">USER</option>
+                            <option value="ADMIN">ADMIN</option>
+                        </select>
+                    </div>
+                    <div class="col-3">
+                        <button class="btn btn-primary fw-bold w-100" id="addUserIdBtn" onclick="addNewUserId()">➕ Add</button>
+                    </div>
                 </div>
                 <hr>
-                <h6>Google Sheet Saved User IDs:</h6>
+                <h6>Google Sheet Saved Users:</h6>
                 <ul id="authorizedUserList" class="list-group"></ul>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Bootstrap & SheetJS Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdb2G7RdCq_dGkFiZvGUvfdaOv-pJsdDQ_uMSx3yf1Y746etoyYG3HZhaG7uH5U3qgJw/exec";
+    const MASTER_ADMIN_ID = "SAGAR-7869";
 
-    let authorizedUsers = [];
+    let authorizedUsers = []; // Array of objects: { id: "ID-101", role: "USER" }
     let washersData = JSON.parse(localStorage.getItem('qcWashersMultiSheetV5')) || [];
     let activeLoggedInUser = localStorage.getItem('qcActiveSessionUser') || "";
 
@@ -147,7 +155,6 @@
         fetchAuthorizedUsersFromSheet();
     });
 
-    // 1. Google Sheet se Live User IDs Fetch karna
     function fetchAuthorizedUsersFromSheet() {
         fetch(WEB_APP_URL)
             .then(res => res.json())
@@ -163,7 +170,6 @@
             });
     }
 
-    // Login Authentication Logic
     function attemptLogin() {
         const inputVal = document.getElementById('loginUserIdInput').value.trim().toUpperCase();
         const errElem = document.getElementById('loginErrorMsg');
@@ -174,7 +180,9 @@
             return;
         }
 
-        if (authorizedUsers.includes(inputVal)) {
+        const userObj = authorizedUsers.find(u => u.id === inputVal);
+
+        if (userObj || inputVal === MASTER_ADMIN_ID) {
             activeLoggedInUser = inputVal;
             localStorage.setItem('qcActiveSessionUser', activeLoggedInUser);
             errElem.style.display = "none";
@@ -187,10 +195,23 @@
     }
 
     function checkLoginSession() {
-        if (activeLoggedInUser && authorizedUsers.includes(activeLoggedInUser)) {
+        const userObj = authorizedUsers.find(u => u.id === activeLoggedInUser);
+
+        if (activeLoggedInUser && (userObj || activeLoggedInUser === MASTER_ADMIN_ID)) {
             document.getElementById('loginOverlay').style.display = "none";
             document.getElementById('mainDashboard').style.display = "block";
             document.getElementById('displayActiveUser').innerText = activeLoggedInUser;
+
+            // Role Check: Agar Role ADMIN hai ya Master Admin ID hai tabhi button dikhana
+            const adminRow = document.getElementById('adminControlRow');
+            const isAdmin = activeLoggedInUser === MASTER_ADMIN_ID || (userObj && userObj.role === "ADMIN");
+
+            if (isAdmin) {
+                adminRow.style.display = "flex";
+            } else {
+                adminRow.style.display = "none";
+            }
+
             renderCards();
         } else {
             document.getElementById('loginOverlay').style.display = "flex";
@@ -204,32 +225,38 @@
         checkLoginSession();
     }
 
-    // Modal mein Google Sheet se aayi Users List dikhana
     function renderUserListModal() {
         const listContainer = document.getElementById('authorizedUserList');
         listContainer.innerHTML = "";
-        
-        if(authorizedUsers.length === 0) {
-            listContainer.innerHTML = `<li class="list-group-item text-muted">Loading users from Google Sheet...</li>`;
-            return;
-        }
 
-        authorizedUsers.forEach((id, idx) => {
+        authorizedUsers.forEach((u) => {
+            let deleteBtnHtml = `<button class="btn btn-sm btn-outline-danger" onclick="deleteUserId('${u.id}')">🗑️ Delete</button>`;
+            if (u.id === MASTER_ADMIN_ID) {
+                deleteBtnHtml = `<span class="badge bg-danger">Primary Admin</span>`;
+            }
+
+            let roleBadge = u.role === "ADMIN" ? `<span class="badge bg-warning text-dark me-2">ADMIN</span>` : `<span class="badge bg-secondary me-2">USER</span>`;
+
             listContainer.innerHTML += `
                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span class="fw-bold text-dark">${id}</span>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUserId('${id}')">🗑️ Delete</button>
+                    <div>
+                        <span class="fw-bold text-dark me-2">${u.id}</span>
+                        ${roleBadge}
+                    </div>
+                    ${deleteBtnHtml}
                 </li>
             `;
         });
     }
 
-    // Direct Google Sheet mein Nayi User ID Add karna
     function addNewUserId() {
         const inputElem = document.getElementById('newUserIdInput');
+        const roleElem = document.getElementById('newUserRoleSelect');
         const newId = inputElem.value.trim().toUpperCase();
+        const selectedRole = roleElem.value;
+
         if (!newId) { alert("Sahi User ID dalein!"); return; }
-        if (authorizedUsers.includes(newId)) { alert("Yeh User ID pehle se added hai!"); return; }
+        if (authorizedUsers.some(u => u.id === newId)) { alert("Yeh User ID pehle se added hai!"); return; }
 
         const addBtn = document.getElementById('addUserIdBtn');
         addBtn.disabled = true;
@@ -237,29 +264,29 @@
 
         fetch(WEB_APP_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: "addUser", userId: newId })
+            body: JSON.stringify({ action: "addUser", userId: newId, role: selectedRole })
         })
         .then(res => res.json())
         .then(res => {
-            authorizedUsers.push(newId);
+            authorizedUsers.push({ id: newId, role: selectedRole });
             inputElem.value = "";
             addBtn.disabled = false;
-            addBtn.innerText = "➕ Add ID";
+            addBtn.innerText = "➕ Add";
             renderUserListModal();
         })
         .catch(err => {
             alert("Error adding user to sheet!");
             addBtn.disabled = false;
-            addBtn.innerText = "➕ Add ID";
+            addBtn.innerText = "➕ Add";
         });
     }
 
-    // Direct Google Sheet se User ID Delete karna
     function deleteUserId(userIdToDelete) {
-        if (authorizedUsers.length <= 1) {
-            alert("Aap saare Users delete nahi kar sakte! Kam se kam 1 Active ID honi chahiye.");
+        if (userIdToDelete === MASTER_ADMIN_ID) {
+            alert("Aap Master Admin ID ko delete nahi kar sakte!");
             return;
         }
+
         if (confirm(`Kya aap "${userIdToDelete}" ko delete karna chahte hain?`)) {
             fetch(WEB_APP_URL, {
                 method: 'POST',
@@ -267,19 +294,13 @@
             })
             .then(res => res.json())
             .then(res => {
-                authorizedUsers = authorizedUsers.filter(id => id !== userIdToDelete);
+                authorizedUsers = authorizedUsers.filter(u => u.id !== userIdToDelete);
                 renderUserListModal();
-
-                if (activeLoggedInUser === userIdToDelete) {
-                    alert("Aapki current User ID delete kar di gayi hai. Logout ho raha hai.");
-                    logoutUser();
-                }
             })
             .catch(err => alert("Error deleting user from sheet!"));
         }
     }
 
-    // Washer Counter Business Logic
     function getTodayDate() {
         const today = new Date();
         const dd = String(today.getDate()).padStart(2, '0');
